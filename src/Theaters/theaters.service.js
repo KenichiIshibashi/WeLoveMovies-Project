@@ -1,24 +1,20 @@
-const knex = require("../db/connection");
-const reduceProperties = require("../utils/reduce-properties");
+const db = require("../db/connection");
 
-const reduceMovies = reduceProperties("theater_id", {
-  movie_id: ["movies", null, "movie_id"],
-  title: ["movies", null, "title"],
-  runtime_in_minutes: ["movies", null, "runtime_in_minutes"],
-  rating: ["movies", null, "rating"],
-  description: ["movies", null, "description"],
-  image_url: ["movies", null, "image_url"],
-  is_showing: ["movies", null, "is_showing"],
-});
-
+// returns all the records from the "theaters" table in the database
 function list() {
-  return knex("theaters as t")
-    .join("movies_theaters as mt", "t.theater_id", "mt.theater_id")
-    .join("movies as m", "mt.movie_id", "m.movie_id")
-    .select("*")
-    .then((result) => reduceMovies(result, null));
+  return db("theaters");
+}
+
+// The getMovies function fetches all movies playing in a specific theater.
+
+function getMovies(theaterId) {
+  return db("movies as m")
+    .join("movies_theaters as mt", "m.movie_id", "mt.movie_id")
+    .where({ "mt.theater_id": theaterId })
+    .select("m.*", "mt.is_showing", "mt.theater_id");
 }
 
 module.exports = {
   list,
+  getMovies,
 };

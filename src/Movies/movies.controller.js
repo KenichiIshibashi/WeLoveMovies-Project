@@ -1,49 +1,81 @@
 const service = require("./movies.service");
+const asyncErrorBoundary = require("../errors/asyncErrorBoundary");
 
-// List the movies: Checking for movies that are currently showing, or if not showing displays the movie list.
-async function list(req, res, next) {
-  const displayed = req.query.is_showing;
-  if (displayed) {
-    const data = await service.listDisplayed();
-    return res.json({ data });
-  }
-  const data = await service.list();
-  res.json({ data });
-}
+// middleware to check if movie id provided exists in database.
 
-// Function to return the details of a specific movie.
-async function read(req, res, next) {
-  return res.json({ data: res.locals.movie });
-}
-
-// Function to look for a specific movie with the given movieId.
-async function movieExists(req, res, next) {
+const _paramsCheck = async (req, res, next) => {
+  // Destructuring to extract the movieId property from the req.params object. Short for const movieId = req.params.movieId
   const { movieId } = req.params;
-  const movie = await service.read(movieId);
-  if (movie) {
-    res.locals.movie = movie;
-    return next();
+
+  const match = await service.read(Number(movieId));
+
+  // Check if no movie was found with the given movieId or if movieId is not provided
+  if (match.length === 0 || !movieId) {
+    return res.status(404).json({
+      error: `movieId ${movieId} does not exist in the database`,
+    });
   }
-  res.status(404).send({ error: "Movie cannot be found" });
+
+  // If a movie match was found, store the movie data in res.locals.
+  // The [0] is needed because we're extracting the movie object from the array.
+  res.locals.movie = match[0];
+
+  // continue to the next middleware or route handler
+  next();
+};
+
+async function list(req, res, next) {
+  const isShowing = req.query.is_showing === "true";
+  const movies = await service.list(isShowing);
+  res.json({ data: movies });
 }
 
-// Function to list theaters showing a specific movie
-async function listTheaters(req, res, next) {
-  const movieId = res.locals.movie.movie_id;
-  const data = await service.listTheaters(movieId);
-  res.json({ data });
+async function listTheaters(req, res) {
+  const movieId = req.params.movieId;
+  const theaters = await service.listTheaters(movieId);
+
+  res.status(200).json({ data: theaters });
 }
 
-// Function list the reviews for a specific movie
-async function listReviews(req, res, next) {
-  const movieId = res.locals.movie.movie_id;
-  const data = await service.listReviews(movieId);
-  res.json({ data });
+async function read(req, res) {
+  res.status(200).json({ data: res.locals.movie });
+}
+
+//This function will retrieve the reviews + critics info for the movieId that is provided.
+
+async function listReviews(req, res) {
+  // Extract movieId from request params.
+  const movieId = req.params.movieId;
+
+  // Fetch reviews for the movie now that we know the movieId to fetch. Uses the listReviewsForMovies function in reviews.service.js.
+  const reviews = await service.listReviewsForMovie(movieId);
+
+  const formattedReviews = reviews.map((review) => {
+    return {
+      ...review,
+      critic: {
+        critic_id: review.critic_id,
+        preferred_name: review.preferred_name,
+        surname: review.surname,
+        organization_name: review.organization_name,
+        created_at: review.created_at,
+        updated_at: review.updated_at,
+      },
+    };
+  });
+
+  res.json({ data: formattedReviews });
 }
 
 module.exports = {
-  list,
-  read: [movieExists, read],
-  listTheaters: [movieExists, listTheaters],
-  listReviews: [movieExists, listReviews],
+  read: [asyncErrorBoundary(_paramsCheck), asyncErrorBoundary(read)],
+  list: [asyncErrorBoundary(list)],
+  listTheaters: [
+    asyncErrorBoundary(_paramsCheck),
+    asyncErrorBoundary(listTheaters),
+  ],
+  listReviews: [
+    asyncErrorBoundary(_paramsCheck),
+    asyncErrorBoundary(listReviews),
+  ],
 };

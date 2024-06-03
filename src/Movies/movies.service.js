@@ -1,72 +1,54 @@
-const knex = require("../db/connection");
-const mapProperties = require("../utils/map-properties");
+const db = require("../db/connection");
 
-// Function selects all of the movies in the movies table
-function list() {
-  return knex("movies").select("*");
+function list(isShowing) {
+  if (isShowing) {
+    // Giving table aliases 'm' stands for 'movies', 'mt' stands for 'movies_theaters'
+    return (
+      db("movies as m")
+        // joins two tables on a common column. Both have "movie_id"
+        .join("movies_theaters as mt", "m.movie_id", "mt.movie_id")
+
+        // Filter the rows that are going to be returned. Anything where "is_showing" is true will be returned.
+        .where({ "mt.is_showing": true })
+
+        // Selecting "all columns" on the movies table to be shown.
+        .select("m.*")
+
+        // Avoids duplicates from showing. Making sure only one id is shown per movie
+        .groupBy("m.movie_id")
+    );
+  }
+  return db("movies");
 }
 
 function read(movieId) {
-  return knex("movies").select("*").where({ movie_id: movieId }).first();
+  return db("movies").where({ movie_id: movieId });
 }
 
-// Function returns a list of movies that are currently showing in the theaters
-function isShowing() {
+function listTheaters(movieId) {
   return (
-    knex("movies as m")
-      // Joins the movies table with the movies_theaters table on movie_id
-      .join("movies_theaters as mt", "m.movie_id", "mt.movie_id")
-      .distinct(
-        "mt.movie_id",
-        "m.title",
-        "m.runtime_in_minutes",
-        "m.rating",
-        "m.description",
-        "m.image_url"
-      )
-      .where({ "mt.is_showing": true })
+    db("theaters as t")
+      .join("movies_theaters as mt", "t.theater_id", "mt.theater_id")
+
+      // WHERE mt.movie_id = [value of movieId]
+      .where({ "mt.movie_id": movieId })
+
+      // Selecting what we want to see. In this case all of "theaters" columns, "is_showing" in the "movies_theaters" table, and "movie_id" from the "movies_theaters"
+      .select("t.*", "mt.is_showing", "mt.movie_id")
   );
 }
 
-// Uses the mapProperties to next critic properties in a critic object
-const addCritic = mapProperties({
-  critic_id: "critic,critic_id",
-  preffered_name: "critic.preffered_name",
-  surname: "critic.surname",
-  organization_name: "critic.organization_name",
-});
-
-// Function returns a list of theaters that show a specific movie based on the given movieId
-function readTheaters(movieId) {
-  return knex("theaters as t")
-    .join("movies_theaters as mt", "t.theater_id", "mt.theater_id")
-    .select("*")
-    .where({ movie_id: movieId, is_showing: true });
-}
-
-// Function returns a list of reviews for a specific movie, including the critic information
-function readReviews(movieId) {
-  return (
-    knex("reviews as r")
-      // Joins the reviews table with the critics table on critic_id
-      .join("critics as c", "r.critic_id", "c.critic_id")
-      .select("*")
-      .where({ movie_id: movieId })
-      .then((result) => {
-        const returnList = [];
-        result.forEach((item) => {
-          const itemWithCritic = addCritic(item);
-          returnList.push(itemWithCritic);
-        });
-        return returnList;
-      })
-  );
+// This function JOINS the "reviews" and "critics" tables.
+function listReviewsForMovie(movieId) {
+  return db("reviews as r")
+    .join("critics as c", "r.critic_id", "c.critic_id")
+    .where({ "r.movie_id": movieId })
+    .select("r.*", "c.*");
 }
 
 module.exports = {
   list,
-  isShowing,
   read,
-  readTheaters,
-  readReviews,
+  listTheaters,
+  listReviewsForMovie,
 };

@@ -7,10 +7,11 @@ exports.up = function (knex) {
     table.string("city");
     table.string("state");
     table.string("zip");
-    table.timestamps(true, false);
+
+    table.timestamps(true, true);
   });
 };
 
 exports.down = function (knex) {
-  knex.schema.dropTableIfExists("theaters");
+  return knex.schema.dropTable("theaters");
 };

@@ -3,16 +3,24 @@ exports.up = function (knex) {
     table.increments("review_id").primary();
     table.text("content");
     table.integer("score");
+    table
+      .integer("critic_id")
+      .references("critic_id")
+      .inTable("critics")
+      .onDelete("CASCADE") // If a critic is deleted, their reviews are deleted as well
+      .onUpdate("CASCADE"); // If a critic is updated, their reviews are updated as well
 
-    table.integer("critic_id").unsigned();
-    table.foreign("critic_id").references("critic_id").inTable("critics");
+    table
+      .integer("movie_id")
+      .references("movie_id")
+      .inTable("movies")
+      .onDelete("CASCADE") // if a movie is deleted, its reviews are deleted as well
+      .onUpdate("CASCADE");
 
-    table.integer("movie_id").unsigned();
-    table.foreign("movie_id").references("movie_id").inTable("movies");
-    table.timestamps(true, false);
+    table.timestamps(true, true); // created_at and updated_at fields
   });
 };
 
 exports.down = function (knex) {
-  return knex.schema.dropTableIfExists("reviews");
+  return knex.schema.dropTable("reviews");
 };

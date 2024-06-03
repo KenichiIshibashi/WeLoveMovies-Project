@@ -3,7 +3,7 @@ exports.up = function (knex) {
     table.increments("critic_id").primary();
     table.string("preferred_name");
     table.string("surname");
-    table.string("oraganiztion_name");
+    table.string("organization_name");
     table.timestamps(true, true);
   });
 };
