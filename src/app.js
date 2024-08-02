@@ -9,7 +9,11 @@ const reviewsRouter = require("./Reviews/reviews.router");
 
 const app = express();
 
-app.use(cors());
+const corsOptions = {
+  origin: "https://starter-movie-front-end-ochre.vercel.app/",
+};
+
+app.use(cors(corsOptions));
 app.use(express.json());
 
 app.use("/movies", moviesRouter);
