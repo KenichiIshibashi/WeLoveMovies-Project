@@ -10,7 +10,7 @@ const reviewsRouter = require("./Reviews/reviews.router");
 const app = express();
 
 const corsOptions = {
-  origin: "https://starter-movie-front-end-ochre.vercel.app/",
+  origin: "https://starter-movie-front-end-g4hl.onrender.com",
 };
 
 app.use(cors(corsOptions));
